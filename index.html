@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RAG Chat — PDF & Text</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --border: #2d3a4f;
+      --text: #e7ecf3;
+      --muted: #8b9cb3;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --success: #22c55e;
+      --error: #ef4444;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 1.5rem;
+    }
+    h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
+    .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.5rem; }
+    .session-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+      padding: 0.75rem 1rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 1.5rem;
+      font-size: 0.85rem;
+    }
+    .session-bar code {
+      background: #0f1419;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      word-break: break-all;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    @media (max-width: 700px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem;
+    }
+    .card h2 { font-size: 1rem; margin: 0 0 0.75rem; }
+    label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 0.35rem; }
+    input[type="file"],
+    textarea {
+      width: 100%;
+      background: #0f1419;
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 6px;
+      padding: 0.6rem;
+      font-family: inherit;
+    }
+    textarea { min-height: 120px; resize: vertical; }
+    button {
+      margin-top: 0.75rem;
+      padding: 0.55rem 1rem;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+    button:hover { background: var(--accent-hover); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .chat-section { margin-top: 1.5rem; }
+    #chatLog {
+      height: 320px;
+      overflow-y: auto;
+      background: #0f1419;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+    }
+    .msg { margin-bottom: 1rem; }
+    .msg.user strong { color: var(--accent); }
+    .msg.bot strong { color: var(--success); }
+    .msg .content {
+      margin-top: 0.35rem;
+      white-space: pre-wrap;
+    }
+    .sources {
+      margin-top: 0.5rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+      border-top: 1px dashed var(--border);
+      padding-top: 0.5rem;
+    }
+    .chat-input-row {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .chat-input-row input {
+      flex: 1;
+      padding: 0.65rem;
+      background: #0f1419;
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 6px;
+    }
+    #status {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-top: 0.5rem;
+      min-height: 1.2em;
+    }
+    #status.error { color: var(--error); }
+    #status.ok { color: var(--success); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>ربات RAG</h1>
+    <p class="subtitle">LangChain + FAISS + Gemini — هر Session فقط به داده‌های خودش دسترسی دارد</p>
+
+    <div class="session-bar">
+      <span>Session ID:</span>
+      <code id="sessionDisplay">در حال ایجاد...</code>
+      <button type="button" id="newSessionBtn" style="margin-top:0">Session جدید</button>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>آپلود PDF</h2>
+        <label for="pdfFile">فایل PDF</label>
+        <input type="file" id="pdfFile" accept=".pdf,application/pdf" />
+        <button type="button" id="uploadPdfBtn">بارگذاری و پردازش PDF</button>
+      </div>
+
+      <div class="card">
+        <h2>ورودی متنی</h2>
+        <label for="textInput">متن برای ingest</label>
+        <textarea id="textInput" placeholder="متن خود را اینجا وارد کنید..."></textarea>
+        <button type="button" id="ingestTextBtn">افزودن متن به پایگاه</button>
+      </div>
+    </div>
+
+    <section class="chat-section card">
+      <h2>چت</h2>
+      <div id="chatLog"></div>
+      <div class="chat-input-row">
+        <input type="text" id="questionInput" placeholder="سوال خود را بپرسید..." />
+        <button type="button" id="sendBtn">ارسال</button>
+      </div>
+      <div id="status"></div>
+    </section>
+  </div>
+
+  <script>
+    const SESSION_KEY = "rag_session_id";
+    const API_BASE = ""; // همان origin — FastAPI روی پورت 8000
+
+    const sessionDisplay = document.getElementById("sessionDisplay");
+    const newSessionBtn = document.getElementById("newSessionBtn");
+    const statusEl = document.getElementById("status");
+    const chatLog = document.getElementById("chatLog");
+
+    function setStatus(msg, type = "") {
+      statusEl.textContent = msg;
+      statusEl.className = type;
+    }
+
+    function getSessionId() {
+      return localStorage.getItem(SESSION_KEY);
+    }
+
+    function setSessionId(id) {
+      localStorage.setItem(SESSION_KEY, id);
+      sessionDisplay.textContent = id;
+    }
+
+    async function api(path, options = {}) {
+      const sessionId = getSessionId();
+      const headers = {
+        ...(options.headers || {}),
+      };
+      if (sessionId && !headers["X-Session-ID"]) {
+        headers["X-Session-ID"] = sessionId;
+      }
+      const res = await fetch(API_BASE + path, { ...options, headers });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.detail || data.message || res.statusText);
+      }
+      return data;
+    }
+
+    async function ensureSession() {
+      let id = getSessionId();
+      if (id) {
+        sessionDisplay.textContent = id;
+        return id;
+      }
+      const data = await api("/api/session", { method: "POST" });
+      setSessionId(data.session_id);
+      return data.session_id;
+    }
+
+    async function createNewSession() {
+      const data = await api("/api/session", { method: "POST" });
+      setSessionId(data.session_id);
+      chatLog.innerHTML = "";
+      setStatus("Session جدید ایجاد شد.", "ok");
+    }
+
+    function appendMessage(role, text, sources = null) {
+      const div = document.createElement("div");
+      div.className = "msg " + role;
+      const label = role === "user" ? "شما" : "ربات";
+      let html = `<strong>${label}</strong><div class="content">${escapeHtml(text)}</div>`;
+      if (sources && sources.length) {
+        html += '<div class="sources"><strong>منابع:</strong><ul>';
+        sources.forEach((s) => {
+          html += `<li>${escapeHtml(s.source || "—")} — ${escapeHtml(s.preview || "")}</li>`;
+        });
+        html += "</ul></div>";
+      }
+      div.innerHTML = html;
+      chatLog.appendChild(div);
+      chatLog.scrollTop = chatLog.scrollHeight;
+    }
+
+    function escapeHtml(str) {
+      const d = document.createElement("div");
+      d.textContent = str;
+      return d.innerHTML;
+    }
+
+    document.getElementById("uploadPdfBtn").addEventListener("click", async () => {
+      const fileInput = document.getElementById("pdfFile");
+      if (!fileInput.files.length) {
+        setStatus("لطفاً یک فایل PDF انتخاب کنید.", "error");
+        return;
+      }
+      await ensureSession();
+      const form = new FormData();
+      form.append("file", fileInput.files[0]);
+      setStatus("در حال پردازش PDF...");
+      try {
+        const data = await api("/api/ingest/pdf", {
+          method: "POST",
+          headers: { "X-Session-ID": getSessionId() },
+          body: form,
+        });
+        setStatus(
+          `انجام شد: ${data.pages_loaded} صفحه، ${data.chunks_added} chunk اضافه شد.`,
+          "ok"
+        );
+        fileInput.value = "";
+      } catch (e) {
+        setStatus(e.message, "error");
+      }
+    });
+
+    document.getElementById("ingestTextBtn").addEventListener("click", async () => {
+      const text = document.getElementById("textInput").value.trim();
+      if (!text) {
+        setStatus("متن خالی است.", "error");
+        return;
+      }
+      await ensureSession();
+      setStatus("در حال افزودن متن...");
+      try {
+        const data = await api("/api/ingest/text", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Session-ID": getSessionId(),
+          },
+          body: JSON.stringify({ text, session_id: getSessionId() }),
+        });
+        setStatus(`انجام شد: ${data.chunks_added} chunk اضافه شد.`, "ok");
+        document.getElementById("textInput").value = "";
+      } catch (e) {
+        setStatus(e.message, "error");
+      }
+    });
+
+    async function sendQuestion() {
+      const input = document.getElementById("questionInput");
+      const q = input.value.trim();
+      if (!q) return;
+
+      await ensureSession();
+      appendMessage("user", q);
+      input.value = "";
+      setStatus("در حال پاسخ‌دهی...");
+
+      try {
+        const data = await api("/api/chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Session-ID": getSessionId(),
+          },
+          body: JSON.stringify({ question: q, session_id: getSessionId() }),
+        });
+        appendMessage("bot", data.answer || "(بدون پاسخ)", data.sources);
+        setStatus("", "");
+      } catch (e) {
+        appendMessage("bot", "خطا: " + e.message);
+        setStatus(e.message, "error");
+      }
+    }
+
+    document.getElementById("sendBtn").addEventListener("click", sendQuestion);
+    document.getElementById("questionInput").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") sendQuestion();
+    });
+    newSessionBtn.addEventListener("click", createNewSession);
+
+    ensureSession().catch((e) => setStatus("خطا در ایجاد Session: " + e.message, "error"));
+  </script>
+</body>
+</html>
