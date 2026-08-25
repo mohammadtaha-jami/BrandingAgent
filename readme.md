@@ -1,7 +1,4 @@
 # Branding Bot
-
-
-
 <p align="center">
   <img src="https://img.shields.io/badge/build-passing-brightgreen" alt="Build" />
   <img src="https://img.shields.io/badge/version-2.0.0-blue" alt="Version" />
@@ -10,9 +7,6 @@
   <img src="https://img.shields.io/badge/FastAPI-0.115%2B-009688?logo=fastapi&logoColor=white" alt="FastAPI" />
 </p>
 
-<p align="center">
-  <em>Replace <code>docs/banner.png</code> with your project logo or screenshot.</em>
-</p>
 
 Session-based RAG chatbot with an LLM intent router. Ingest PDFs or raw text, then chat against that knowledge — locally, via Ollama.
 
