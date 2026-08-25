@@ -1,8 +1,6 @@
 # Branding Bot
 
-<p align="center">
-  <img src="docs/banner.png" alt="Branding Bot banner" width="100%" />
-</p>
+
 
 <p align="center">
   <img src="https://img.shields.io/badge/build-passing-brightgreen" alt="Build" />
