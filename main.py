@@ -1,11 +1,11 @@
 """
-main.py — لایه API با FastAPI
+main.py — لایه API با FastAPI (Router-Based RAG Chatbot)
 
 Endpointها:
   POST /api/session          → ساخت Session جدید
   POST /api/ingest/pdf       → آپلود PDF
   POST /api/ingest/text      → ورودی متنی
-  POST /api/chat             → پرسش و پاسخ RAG
+  POST /api/chat             → چت هوشمند با Intent Router (GREETING / KNOWLEDGE / CHITCHAT)
   GET  /                     → رابط کاربری (index.html)
 """
 
@@ -29,9 +29,12 @@ APP_DIR = Path(__file__).resolve().parent
 INDEX_HTML = APP_DIR / "index.html"
 
 app = FastAPI(
-    title="RAG Bot — LangChain + FAISS + Gemini",
-    description="سیستم RAG ماژولار با Session ID برای جداسازی داده هر کاربر",
-    version="1.0.0",
+    title="Router RAG Bot — LangChain + FAISS + Ollama",
+    description=(
+        "چت‌بات مسیریاب هوشمند با Session ID — "
+        "Intent Router (GREETING/KNOWLEDGE/CHITCHAT) + RAG شرطی + حافظه گفتگو"
+    ),
+    version="2.0.0",
 )
 
 # CORS برای توسعه محلی (فرانت و API روی همان origin هستند؛ برای جدا بودن دامنه مفید است)
@@ -55,6 +58,12 @@ class TextIngestRequest(BaseModel):
 class ChatRequest(BaseModel):
     question: str = Field(..., min_length=1)
     session_id: str | None = None
+
+
+class ChatResponse(BaseModel):
+    answer: str
+    sources: list[dict] = Field(default_factory=list)
+    intent: str = Field(..., description="دسته Intent: GREETING | KNOWLEDGE | CHITCHAT")
 
 
 class SessionResponse(BaseModel):
@@ -140,12 +149,16 @@ async def ingest_text(
         raise _handle_processor_error(exc) from exc
 
 
-@app.post("/api/chat")
+@app.post("/api/chat", response_model=ChatResponse)
 async def chat(
     payload: ChatRequest,
     x_session_id: str | None = Header(None, alias="X-Session-ID"),
 ):
-    """پرسش سوال و دریافت پاسخ مبتنی بر RAG (بدون رفرش — از سمت فرانت با fetch)."""
+    """
+    پرسش سوال با مسیریاب Intent:
+    - GREETING / CHITCHAT → پاسخ عمومی بدون FAISS
+    - KNOWLEDGE → RAG + Context از دیتابیس
+    """
     session_id = _resolve_session_id(x_session_id, payload.session_id)
     try:
         return rag_processor.ask(session_id, payload.question)
